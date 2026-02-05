@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Notes App</title>
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        #notes {
+            flex: 2;
+            padding: 20px;
+            background: #f2f2f2;
+        }
+
+        #panel {
+            flex: 1;
+            padding: 20px;
+            border-left: 2px solid #ccc;
+        }
+
+        .note {
+            background: white;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .delete-btn {
+            background: crimson;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .delete-btn:hover {
+            background: darkred;
+        }
+
+        #input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        #panel button {
+            width: 100%;
+            padding: 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        #panel button:hover {
+            background: #0056b3;
+        }
+
+        .error-msg {
+            background: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="notes"></div>
+
+    <div id="panel">
+        <div id="error" class="error-msg"></div>
+        <input id="input" type="text" placeholder="Enter note">
+        <button onclick="addNote()">Add</button>
+    </div>
+
+    <script>
+        const API = 'http://localhost:3000';
+        const notesDiv = document.getElementById('notes');
+        const input = document.getElementById('input');
+        const errorDiv = document.getElementById('error');
+
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // Load notes on start
+        fetch(API + '/notes')
+            .then(r => {
+                if (!r.ok) throw new Error('Failed to load notes');
+                return r.json();
+            })
+            .then(renderNotes)
+            .catch(err => showError('Could not connect to server. Make sure the server is running.'));
+
+        function renderNotes(notes) {
+            notesDiv.innerHTML = '';
+            notes.forEach(n => {
+                const div = document.createElement('div');
+                div.className = 'note';
+
+                const text = document.createElement('span');
+                text.textContent = n.text;
+
+                const btn = document.createElement('button');
+                btn.textContent = 'Delete';
+                btn.className = 'delete-btn';
+                btn.onclick = () => deleteNote(n.id);
+
+                div.appendChild(text);
+                div.appendChild(btn);
+                notesDiv.appendChild(div);
+            });
+        }
+
+        function addNote() {
+            const value = input.value.trim();
+            if (!value) {
+                showError('Please enter a note');
+                return;
+            }
+
+            fetch(API + '/notes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: value })
+            })
+                .then(r => {
+                    if (!r.ok) throw new Error('Failed to add note');
+                    return fetch(API + '/notes');
+                })
+                .then(r => r.json())
+                .then(renderNotes)
+                .catch(err => showError('Failed to add note'));
+
+            input.value = '';
+        }
+
+        function deleteNote(id) {
+            fetch(API + '/notes/' + id, { method: 'DELETE' })
+                .then(r => {
+                    if (!r.ok) throw new Error('Failed to delete note');
+                    return fetch(API + '/notes');
+                })
+                .then(r => r.json())
+                .then(renderNotes)
+                .catch(err => showError('Failed to delete note'));
+        }
+    </script>
+    <!-- https://cdnjs.cloudflare.com/ajax/libs/axios/1.7.6/axios.min.js -->
+</body>
+
+</html>
